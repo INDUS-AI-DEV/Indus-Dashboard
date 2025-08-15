@@ -64,8 +64,8 @@ export function DashboardSidebar() {
                   <BarChart3 className="w-5 h-5 text-sidebar-primary-foreground" />
                 </div>
                 <div>
-                  <h1 className="font-bold text-sidebar-foreground">Enterprise AI</h1>
-                  <p className="text-xs text-sidebar-foreground/70">Analytics Dashboard</p>
+                  <h1 className="font-bold text-sidebar-foreground">Indus AI Client</h1>
+                  <p className="text-xs text-sidebar-foreground/70">Client Dashboard</p>
                 </div>
               </>
             )}

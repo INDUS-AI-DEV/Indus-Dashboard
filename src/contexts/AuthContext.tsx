@@ -1,18 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
-import axios from 'axios';
-
-// Define the API response types
-interface LoginResponse {
-  access_token: string;
-  user: Omit<User, 'id'> & { _id: string };
-}
-
-interface ApiResponse<T> {
-  data: T;
-  message?: string;
-}
 
 interface User {
   id: string;
@@ -32,84 +20,64 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Consolidated error response type
-interface ApiErrorResponse {
-  response?: {
-    data?: {
-      message?: string;
-      detail?: string;
-    };
-  };
-  message?: string;
-}
+// Hardcoded users - In a real app, NEVER store passwords in frontend code!
+const HARDCODED_USERS = {
+  'tummapudianurag@gmail.com': {
+    id: '1',
+    email: 'tummapudianurag@gmail.com',
+    name: 'Admin User',
+    password: 'Indus123',
+    role: 'admin' as const,
+  },
+  'contact@massistcrm.com': {
+    id: '2',
+    email: 'contact@massistcrm.com',
+    name: 'Client User',
+    password: 'IndusMassist',
+    role: 'client' as const,
+  },
+};
 
 const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   // Check for existing session on mount
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (token) {
-          // Verify token with backend
-          const response = await axios.get<Omit<User, 'id'> & { _id: string }>('/api/auth/me', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          
-          // Transform the response to match the User interface
-          const userData = response.data;
-          setUser({
-            id: userData._id,
-            email: userData.email,
-            name: userData.name || userData.email.split('@')[0],
-            role: userData.role,
-          });
-        }
-      } catch (error) {
-        console.error('Session check failed:', error);
-        localStorage.removeItem('token');
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkSession();
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
-      const { data } = await axios.post<ApiResponse<LoginResponse>>('/api/auth/login', { email, password });
       
-      if (data.data?.access_token) {
-        localStorage.setItem('token', data.data.access_token);
-        setUser({
-          id: data.data.user._id,
-          email: data.data.user.email,
-          name: data.data.user.name || data.data.user.email.split('@')[0],
-          role: data.data.user.role,
-        });
-        navigate('/dashboard');
-        return true;
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const user = HARDCODED_USERS[email as keyof typeof HARDCODED_USERS];
+      
+      if (!user || user.password !== password) {
+        throw new Error('Invalid email or password');
       }
-      return false;
+      
+      // Remove password before storing user
+      const { password: _, ...userWithoutPassword } = user;
+      
+      localStorage.setItem('user', JSON.stringify(userWithoutPassword));
+      setUser(userWithoutPassword);
+      navigate('/dashboard');
+      
+      return true;
     } catch (error) {
       console.error('Login error:', error);
-      let errorMessage = 'Failed to log in';
-      
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { message?: string } }, message?: string };
-        errorMessage = apiError.response?.data?.message || apiError.message || 'Failed to log in';
-      }
-      
       toast({
         title: 'Login Failed',
-        description: errorMessage,
+        description: error instanceof Error ? error.message : 'Failed to log in',
         variant: 'destructive',
       });
       throw error;
@@ -121,34 +89,26 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const loginWithGoogle = async (idToken: string): Promise<boolean> => {
     try {
       setLoading(true);
-      const { data } = await axios.post<ApiResponse<LoginResponse>>('/auth/google', {
-        id_token: idToken
-      });
       
-      if (data.data?.access_token) {
-        localStorage.setItem('token', data.data.access_token);
-        setUser({
-          id: data.data.user._id,
-          email: data.data.user.email,
-          name: data.data.user.name || data.data.user.email.split('@')[0],
-          role: data.data.user.role,
-        });
-        navigate('/dashboard');
-        return true;
-      }
-      return false;
+      // In a real app, you would verify the ID token with Google
+      // For demo, we'll just create a mock user
+      const mockUser = {
+        id: 'google-user-123',
+        email: 'google@example.com',
+        name: 'Google User',
+        role: 'client' as const,
+      };
+      
+      localStorage.setItem('user', JSON.stringify(mockUser));
+      setUser(mockUser);
+      navigate('/dashboard');
+      
+      return true;
     } catch (error) {
       console.error('Google login error:', error);
-      let errorMessage = 'Failed to log in with Google';
-      
-      if (error && typeof error === 'object' && 'response' in error) {
-        const apiError = error as { response?: { data?: { message?: string } }, message?: string };
-        errorMessage = apiError.response?.data?.message || apiError.message || 'Failed to log in with Google';
-      }
-      
       toast({
         title: 'Google Login Failed',
-        description: errorMessage,
+        description: 'Failed to log in with Google',
         variant: 'destructive',
       });
       throw error;
@@ -159,7 +119,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = () => {
     try {
-      localStorage.removeItem('token');
+      localStorage.removeItem('user');
       setUser(null);
       navigate('/login');
     } catch (error) {
@@ -197,5 +157,4 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
-// Export both AuthContext and AuthProvider
 export { AuthContext, AuthProvider };

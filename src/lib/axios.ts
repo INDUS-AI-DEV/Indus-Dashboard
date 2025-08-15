@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create a simple axios instance with default config
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:8000', // Removed /api as the backend routes are at root
+  baseURL: '/api', // Using relative path since we're using Vite proxy
   headers: {
     'Content-Type': 'application/json',
   },
